@@ -95,6 +95,7 @@ public class PassGeneratorPosixCli implements Callable<Integer> {
         }
     }
 
+
     // ---------- batch ----------
     @Command(name = "batch",
             description = "Manage a specific batch",
@@ -132,47 +133,49 @@ public class PassGeneratorPosixCli implements Callable<Integer> {
     }
 
     // ---------- export ----------
-    @Command(name = "export",
-            description = "Export a batch to a CSV file",
-            mixinStandardHelpOptions = true)
-    @Singleton
-    static class ExportCommand implements Callable<Integer> {
+	@Command(name = "export", description = "Export QR codes of a batch to PNG files",
+			mixinStandardHelpOptions = true)
+	@Singleton
+	static class ExportCommand implements Callable<Integer> {
 
-        @Inject
-        PassGenerationService passService;
+		@Inject
+		PassGenerationService passService;
 
-        @Parameters(index = "0", description = "Batch ID")
-        private String batchId;
+		@Parameters(index = "0", description = "Batch ID")
+		String batchId;
 
-        @Option(names = {"-o", "--output"},
-                description = "Output file (default: batch-<id>.csv)")
-        private String output;
+		@Parameters(index = "1", arity = "0..1",
+				description = "Output directory (default: export-<batchId>)")
+		String outputDir;
 
-        @Override
-        public Integer call() {
-            List<Pass> passes = passService.getGeneratedPasses(batchId);
-            if (passes.isEmpty()) {
-                System.err.println("Batch not found or empty: " + batchId);
-                return 1;
-            }
+		@Override
+		public Integer call() {
+			List<Pass> passes = passService.getGeneratedPasses(batchId);
+			if (passes.isEmpty()) {
+				System.err.println("Aucun Pass pour le lot " + batchId);
+				return 1;
+			}
 
-            String fileName = (output != null) ? output : "batch-" + batchId + ".csv";
-            try (var writer = new java.io.PrintWriter(fileName)) {
-                writer.println("firstName,lastName,birthDate,vipStatus,generationDate");
-                for (Pass p : passes) {
-                    writer.printf("%s,%s,%s,%s,%s%n",
-                            p.getFirstName(),
-                            p.getLastName(),
-                            p.getBirthDate(),
-                            p.isVipStatus(),
-                            p.getGenerationDate());
-                }
-                System.out.println("Exported " + passes.size() + " pass(es) to " + fileName);
-                return 0;
-            } catch (Exception e) {
-                System.err.println("Export failed: " + e.getMessage());
-                return 1;
-            }
-        }
-    }
+			java.nio.file.Path dir = java.nio.file.Paths.get(
+					outputDir != null ? outputDir : "export-" + batchId);
+			try {
+				java.nio.file.Files.createDirectories(dir);
+				int n = 0;
+				for (Pass p : passes) {
+					if (p.getQrCode() == null) continue;
+					String base = (p.getFirstName() + "-" + p.getLastName())
+							.replaceAll("[^a-zA-Z0-9-]", "_");
+					java.nio.file.Path f = dir.resolve(base + "-" + n++ + ".png");
+					java.nio.file.Files.write(f, p.getQrCode());
+				}
+				System.out.printf("Export : %d QR code(s) dans %s%n",
+						n, dir.toAbsolutePath());
+				return 0;
+			} catch (Exception e) {
+				System.err.println("Echec export : " + e.getMessage());
+				return 1;
+			}
+		}
+	}
+
 }

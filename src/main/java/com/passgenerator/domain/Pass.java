@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Serdeable
 public class Pass {
+
     private String firstName;
     private String lastName;
     private LocalDateTime birthDate;
@@ -22,4 +23,8 @@ public class Pass {
     private LocalDateTime generationDate;
     private byte[] qrCode;
     private String passId;
+
+    // NEW : traçabilité du lot d'origine
+    private String batchId;
+    private LocalDateTime batchCreatedAt;
 }

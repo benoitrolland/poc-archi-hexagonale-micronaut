@@ -3,6 +3,7 @@ package com.passgenerator.application.impl;
 import com.passgenerator.application.PassGenerationService;
 import com.passgenerator.domain.Pass;
 import jakarta.inject.Singleton;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,16 +18,25 @@ public class PassGenerationServiceImpl implements PassGenerationService {
 
     public PassGenerationServiceImpl(PassGeneratorAsyncProcessor asyncProcessor) {
         this.asyncProcessor = asyncProcessor;
-        // Récupéré via @Value ou configuration Micronaut
-        this.genPassDuration = 1000L; // Valeur par défaut, voir config
+        this.genPassDuration = 1000L;
     }
 
     @Override
     public String submitBatchGeneration(int numberOfPasses) {
         String batchId = UUID.randomUUID().toString();
+        LocalDateTime batchCreatedAt = LocalDateTime.now();  // NEW : horodatage du lot
+
         batchProgressMap.put(batchId, 0.0);
         batchPassesMap.put(batchId, new ArrayList<>());
-        asyncProcessor.processPassesAsync(batchId, numberOfPasses, batchPassesMap, batchProgressMap, genPassDuration);
+
+        asyncProcessor.processPassesAsync(
+                batchId,
+                batchCreatedAt,           // NEW
+                numberOfPasses,
+                batchPassesMap,
+                batchProgressMap,
+                genPassDuration);
+
         return batchId;
     }
 

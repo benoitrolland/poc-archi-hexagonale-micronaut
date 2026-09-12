@@ -8,6 +8,7 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import com.passgenerator.domain.Pass;
 import io.micronaut.scheduling.annotation.Async;
 import jakarta.inject.Singleton;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -25,10 +26,13 @@ public class PassGeneratorAsyncProcessor {
     private final Random random = new Random();
 
     @Async
-    public void processPassesAsync(String batchId, int numberOfPasses,
+    public void processPassesAsync(String batchId,
+                                    LocalDateTime batchCreatedAt,   // NEW
+                                    int numberOfPasses,
                                     Map<String, List<Pass>> batchPassesMap,
                                     Map<String, Double> batchProgressMap,
                                     Long genPassDuration) {
+
         batchProgressMap.put(batchId, 0.0);
         List<Pass> passes = new ArrayList<>();
         List<Pass> regularPasses = new ArrayList<>();
@@ -37,8 +41,9 @@ public class PassGeneratorAsyncProcessor {
         for (int i = 0; i < numberOfPasses; i++) {
             Pass pass;
             try {
-                pass = generateRandomPass(genPassDuration);
+                pass = generateRandomPass(batchId, batchCreatedAt, genPassDuration);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
             if (pass.isVipStatus()) {
@@ -56,7 +61,9 @@ public class PassGeneratorAsyncProcessor {
         }
     }
 
-    private Pass generateRandomPass(Long genPassDuration) throws InterruptedException {
+    private Pass generateRandomPass(String batchId,
+                                     LocalDateTime batchCreatedAt,
+                                     Long genPassDuration) throws InterruptedException {
         Thread.sleep(genPassDuration);
         return Pass.builder()
                 .firstName(FIRST_NAMES[random.nextInt(FIRST_NAMES.length)])
@@ -64,6 +71,8 @@ public class PassGeneratorAsyncProcessor {
                 .birthDate(LocalDateTime.now().minusYears(20L + random.nextInt(40)))
                 .vipStatus(random.nextDouble() < 0.2)
                 .requestDate(LocalDateTime.now())
+                .batchId(batchId)                     // NEW
+                .batchCreatedAt(batchCreatedAt)       // NEW
                 .build();
     }
 
