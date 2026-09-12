@@ -10,24 +10,67 @@ export JAVA_HOME=/home/brd/app/jdks/graalvm-jdk-17.0.8+9.1:home/brd/app/jdks/gra
 export PATH=$JAVA_HOME:$JAVA_HOME%/bin:$PATH
 ----
 
-== Compiler
+== build
+
 ----
-./mvnw clean compile
+mvn(w(.cmd)) clean package (-U)
 ----
+
+
 
 == Tester
 ----
 ./mvnw test
 ----
 
-== Lancer en mode Web
+==  mode Web
+
+Démarer le serveur
 ----
-./mvnw mn:run
+java -Dapp.cli.enabled=false  -jar target/pass-generator-1.0-SNAPSHOT.jar
 ----
 
-== Lancer en mode CLI
+Lancer les commandes
 ----
-./mvnw mn:run -Dapp.cli.enabled=true
+# Créer un batch
+curl -X POST "http://localhost:8080/api/passes/generate?count=100"
+12345678-90abc-def1-2345-1234567890ab
+# afficher avancement
+curl "http://localhost:8080/api/passes/batch/<batchId>/progress"
+37.0
+curl "http://localhost:8080/api/passes/batch/<batchId>/progress"
+41.0
+curl "http://localhost:8080/api/passes/batch/12345678-90abc-def1-2345-1234567890ab/progress"
+44.0
+
+# affiche un pass
+curl "http://localhost:8080/api/passes/batch/<batchId>"
+$ curl "http://localhost:8080/api/passes/batch/3122d591-af45-4aa1-84c4-f1260a802e64"
+[{"firstName":"Lucas","lastName":"Robert","birthDate":"1978-09-12T15:41:35.8759906","vipStatus":true,"requestDate":"2026-09-12T15:41:35.8759906","generationDate":"2026-09-12T15:41:35.9566772","qrCode":[-119,80,78,71,13...]},{}...}]
+----
+
+
+== Lancer en mode cli
+----
+# liste les commandes
+java -jar target/pass-generator-1.0-SNAPSHOT.jar --help
+#execute une commande (ici génère 10 pass)
+java -jar target/pass-generator-1.0-SNAPSHOT.jar generate 10
+----
+
+== Lancer en mode CLI interactif
+----
+$ java -jar target/pass-generator-1.0-SNAPSHOT.jar
+=====================================
+  Pass Generator - CLI interactive
+=====================================
+  1. Génerer des Pass
+  2. Verifier l'etat d'un lot
+  3. Lister les Pass d'un lot
+  4. Rechercher par attributs
+  5. Quitter
+=====================================
+pass-generator>_
 ----
 
 Lors d'une recherche, ignorer l'attribut proposé en tappant enter.
