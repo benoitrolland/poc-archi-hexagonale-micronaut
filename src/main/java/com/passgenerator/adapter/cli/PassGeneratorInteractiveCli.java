@@ -3,211 +3,175 @@ package com.passgenerator.adapter.cli;
 import com.passgenerator.application.PassGenerationService;
 import com.passgenerator.domain.Pass;
 import jakarta.inject.Singleton;
-import org.jline.reader.EndOfFileException;
-import org.jline.reader.LineReader;
-import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.UserInterruptException;
-import org.jline.reader.impl.completer.StringsCompleter;
-import org.jline.terminal.Terminal;
-import org.jline.terminal.TerminalBuilder;
 
-import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * CLI interactive basée sur JLine, adaptée à Micronaut.
- * Le bean est un {@link Singleton} : le service est injecté par constructeur.
- */
 @Singleton
 public class PassGeneratorInteractiveCli {
 
     private final PassGenerationService passService;
+    private final BufferedReader reader;
+    private final PrintStream out;
 
-    /** Dernier batch généré dans la session courante (stateful). */
     private String lastBatchId;
 
     public PassGeneratorInteractiveCli(PassGenerationService passService) {
         this.passService = passService;
+        this.reader = new BufferedReader(new InputStreamReader(System.in));
+        this.out = System.out;
     }
 
     public int run() {
-        try (Terminal terminal = TerminalBuilder.builder().system(true).build()) {
-
-            LineReader reader = LineReaderBuilder.builder()
-                    .terminal(terminal)
-                    .completer(new StringsCompleter(
-                            "1", "2", "3", "4", "5",
-                            "generate", "status", "list", "search", "help", "exit"))
-                    .build();
-
-            printBanner(terminal);
-
+        try {
+            printBanner();
             while (true) {
-                String line;
-                try {
-                    line = reader.readLine("pass-generator> ").trim();
-                } catch (UserInterruptException | EndOfFileException e) {
+                String line = readLine("pass-generator> ");
+                if (line == null) {           // Ctrl+D / fin de flux
+                    out.println();
                     break;
                 }
-
+                line = line.trim();
                 if (line.isEmpty()) continue;
 
                 String[] parts = line.split("\\s+");
                 String cmd = parts[0].toLowerCase();
 
                 switch (cmd) {
-                    case "1", "generate" -> handleGenerate(reader, terminal, parts);
-                    case "2", "status"   -> handleStatus(reader, terminal, parts);
-                    case "3", "list"     -> handleList(reader, terminal, parts);
-                    case "4", "search"   -> handleSearch(reader, terminal);
+                    case "1", "generate" -> handleGenerate(parts);
+                    case "2", "status"   -> handleStatus(parts);
+                    case "3", "list"     -> handleList(parts);
+                    case "4", "search"   -> handleSearch();
                     case "5", "exit", "quit" -> {
-                        terminal.writer().println("Bye!");
-                        terminal.flush();
+                        out.println("Bye!");
                         return 0;
                     }
-                    case "help" -> printBanner(terminal);
-                    default -> {
-                        terminal.writer().println("Commande inconnue : " + cmd);
-                        terminal.flush();
-                    }
+                    case "help" -> printBanner();
+                    default -> out.println("Commande inconnue : " + cmd);
                 }
             }
             return 0;
-        } catch (IOException e) {
-            System.err.println("Erreur terminal : " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Erreur : " + e.getMessage());
             return 1;
         }
     }
 
     // ---------- Commandes ----------
 
-    private void handleGenerate(LineReader reader, Terminal terminal, String[] parts) {
-        int count = readInt(reader, terminal, parts, 1, "Nombre de Pass à générer : ");
-        if (count <= 0) return;
+    private void handleGenerate(String[] parts) throws Exception {
+        Integer count = readInt(parts, 1, "Nombre de Pass a generer : ");
+        if (count == null || count <= 0) return;
 
         String batchId = passService.submitBatchGeneration(count);
         this.lastBatchId = batchId;
 
-        terminal.writer().printf("Génération démarrée. Batch ID : %s%n", batchId);
-        terminal.writer().println("(Ce lot sera utilisé par défaut pour les commandes 2 et 3)");
-        terminal.flush();
+        out.printf("Generation demarree. Batch ID : %s%n", batchId);
+        out.println("(Ce lot sera utilise par defaut pour les commandes 2 et 3)");
     }
 
-    private void handleStatus(LineReader reader, Terminal terminal, String[] parts) {
-        String batchId = resolveBatchId(reader, terminal, parts);
+    private void handleStatus(String[] parts) throws Exception {
+        String batchId = resolveBatchId(parts);
         if (batchId == null) return;
-
-        double progress = passService.getBatchProgress(batchId);
-        terminal.writer().printf("Progression du lot %s : %.2f%%%n", batchId, progress);
-        terminal.flush();
+        out.printf("Progression du lot %s : %.2f%%%n",
+                batchId, passService.getBatchProgress(batchId));
     }
 
-    private void handleList(LineReader reader, Terminal terminal, String[] parts) {
-        String batchId = resolveBatchId(reader, terminal, parts);
+    private void handleList(String[] parts) throws Exception {
+        String batchId = resolveBatchId(parts);
         if (batchId == null) return;
 
         List<Pass> passes = passService.getGeneratedPasses(batchId);
         if (passes.isEmpty()) {
-            terminal.writer().println("Aucun Pass trouvé pour le lot " + batchId);
-        } else {
-            terminal.writer().printf("Lot %s — %d Pass :%n", batchId, passes.size());
-            for (Pass p : passes) {
-                terminal.writer().printf("  %s %s | vip=%s | généré=%s%n",
-                        p.getFirstName(), p.getLastName(),
-                        p.isVipStatus(), p.getGenerationDate());
-            }
+            out.println("Aucun Pass trouve pour le lot " + batchId);
+            return;
         }
-        terminal.flush();
+        out.printf("Lot %s - %d Pass :%n", batchId, passes.size());
+        for (Pass p : passes) {
+            out.printf("  %s %s | vip=%s | genere=%s%n",
+                    p.getFirstName(), p.getLastName(),
+                    p.isVipStatus(), p.getGenerationDate());
+        }
     }
 
-    private void handleSearch(LineReader reader, Terminal terminal) {
-        String firstName = prompt(reader, "Prénom (optionnel) : ");
-        String lastName  = prompt(reader, "Nom (optionnel) : ");
-        String birthStr  = prompt(reader, "Date de naissance ISO (optionnel) : ");
+    private void handleSearch() throws Exception {
+        String firstName = readLine("Prenom (optionnel) : ");
+        String lastName  = readLine("Nom (optionnel) : ");
+        String birthStr  = readLine("Date de naissance ISO (optionnel) : ");
 
-        LocalDateTime bd = birthStr.isEmpty() ? null : LocalDateTime.parse(birthStr);
+        LocalDateTime bd = (birthStr == null || birthStr.isEmpty())
+                ? null : LocalDateTime.parse(birthStr);
 
         List<Pass> passes = passService.findPassesByAttributes(
-                firstName.isEmpty() ? null : firstName,
-                lastName.isEmpty() ? null : lastName,
+                (firstName == null || firstName.isEmpty()) ? null : firstName,
+                (lastName  == null || lastName.isEmpty())  ? null : lastName,
                 bd);
 
         if (passes.isEmpty()) {
-            terminal.writer().println("Aucun Pass trouvé.");
+            out.println("Aucun Pass trouve.");
         } else {
-            passes.forEach(p -> terminal.writer().printf(
-                    "  %s %s | vip=%s%n",
+            passes.forEach(p -> out.printf("  %s %s | vip=%s%n",
                     p.getFirstName(), p.getLastName(), p.isVipStatus()));
         }
-        terminal.flush();
     }
 
     // ---------- Helpers ----------
 
-    /**
-     * Récupère le batch ID :
-     *  1. depuis les arguments s'ils sont fournis (ex: "2 <id>")
-     *  2. sinon, propose le dernier batchId connu comme valeur par défaut
-     *  3. sinon, demande explicitement à l'utilisateur
-     */
-    private String resolveBatchId(LineReader reader, Terminal terminal, String[] parts) {
-        // 1. Argument explicite
-        if (parts.length >= 2 && !parts[1].isBlank()) {
-            return parts[1];
-        }
+    /** Lit une ligne et l'affiche. Retourne null en fin de flux (Ctrl+D). */
+    private String readLine(String prompt) throws Exception {
+        out.print(prompt);
+        out.flush();
+        return reader.readLine();
+    }
 
-        // 2. Dernier batch connu → proposé par défaut
+    private String resolveBatchId(String[] parts) throws Exception {
+        // 1. Argument positionnel
+        if (parts.length >= 2 && !parts[1].isBlank()) return parts[1];
+
+        // 2. Dernier lot connu
         if (lastBatchId != null) {
-            String answer = prompt(reader,
-                    "Batch ID [" + lastBatchId + "] (Entrée pour utiliser, sinon saisir un autre) : ");
+            String answer = readLine("Batch ID [" + lastBatchId
+                    + "] (Entree pour utiliser, sinon saisir un autre) : ").trim();
             return answer.isEmpty() ? lastBatchId : answer;
         }
 
-        // 3. Aucun batch connu → demande explicite
-        String answer = prompt(reader, "Batch ID (aucun lot généré dans cette session) : ");
+        // 3. Aucun lot connu
+        String answer = readLine("Batch ID (aucun lot genere dans cette session) : ").trim();
         if (answer.isEmpty()) {
-            terminal.writer().println("Batch ID obligatoire pour cette commande.");
-            terminal.flush();
+            out.println("Batch ID obligatoire pour cette commande.");
             return null;
         }
         return answer;
     }
 
-    private int readInt(LineReader reader, Terminal terminal, String[] parts,
-                        int index, String prompt) {
+    private Integer readInt(String[] parts, int index, String prompt) throws Exception {
         if (parts.length > index) {
-            try {
-                return Integer.parseInt(parts[index]);
-            } catch (NumberFormatException e) {
-                terminal.writer().println("Nombre invalide : " + parts[index]);
-                terminal.flush();
-                return -1;
+            try { return Integer.parseInt(parts[index]); }
+            catch (NumberFormatException e) {
+                out.println("Nombre invalide : " + parts[index]);
+                return null;
             }
         }
-        try {
-            return Integer.parseInt(prompt(reader, prompt).trim());
-        } catch (NumberFormatException e) {
-            terminal.writer().println("Nombre invalide.");
-            terminal.flush();
-            return -1;
+        String s = readLine(prompt).trim();
+        try { return Integer.parseInt(s); }
+        catch (NumberFormatException e) {
+            out.println("Nombre invalide.");
+            return null;
         }
     }
 
-    private String prompt(LineReader reader, String message) {
-        return reader.readLine(message).trim();
-    }
-
-    private void printBanner(Terminal terminal) {
-        terminal.writer().println("=====================================");
-        terminal.writer().println("  Pass Generator - CLI interactive");
-        terminal.writer().println("=====================================");
-        terminal.writer().println("  1. Générer des Pass");
-        terminal.writer().println("  2. Vérifier l'état d'un lot");
-        terminal.writer().println("  3. Lister les Pass d'un lot");
-        terminal.writer().println("  4. Rechercher par attributs");
-        terminal.writer().println("  5. Quitter");
-        terminal.writer().println("=====================================");
-        terminal.flush();
+    private void printBanner() {
+        out.println("=====================================");
+        out.println("  Pass Generator - CLI interactive");
+        out.println("=====================================");
+        out.println("  1. Génerer des Pass");
+        out.println("  2. Verifier l'etat d'un lot");
+        out.println("  3. Lister les Pass d'un lot");
+        out.println("  4. Rechercher par attributs");
+        out.println("  5. Quitter");
+        out.println("=====================================");
     }
 }
