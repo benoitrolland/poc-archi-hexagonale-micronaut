@@ -30,6 +30,11 @@ Démarer le serveur
 java -Dapp.cli.enabled=false  -jar target/pass-generator-1.0-SNAPSHOT.jar
 ----
 
+Démarer le serveur en mode développement (hot reload) comme avec mvn spring-boot:run en Spring Boot
+----
+./mvnw mn:run -Dapp.cli.enabled=false
+----
+
 Lancer les commandes
 ----
 # Créer un batch

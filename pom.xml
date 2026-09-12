@@ -118,6 +118,11 @@
 
     <build>
         <plugins>
+			<plugin>
+				<groupId>io.micronaut.maven</groupId>  <!-- Changement ici -->
+				<artifactId>micronaut-maven-plugin</artifactId>
+				<version>4.8.1</version>
+			</plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
