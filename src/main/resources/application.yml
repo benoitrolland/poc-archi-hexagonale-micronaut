@@ -1,0 +1,22 @@
+micronaut:
+  application:
+    name: pass-generator
+  server:
+    port: 8080
+  serde:
+    serialization:
+      indent-output: true
+
+generate-random-path:
+  duration: 1000
+
+app:
+  cli:
+    enabled: true
+    kind: posix
+
+logger:
+  levels:
+    root: INFO
+#    com.passgenerator: DEBUG
+#    io.micronaut.serde: DEBUG

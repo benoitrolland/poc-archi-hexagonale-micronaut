@@ -1,0 +1,63 @@
+= usage
+
+- set you java path (grallvm is not necessary)
+
+----
+set JAVA_HOME=c:\brd\app\jdks\graalvm-jdk-17.0.8+9.1
+set PATH=%JAVA_HOME%;%JAVA_HOME%\bin;%PATH%
+
+export JAVA_HOME=/home/brd/app/jdks/graalvm-jdk-17.0.8+9.1:home/brd/app/jdks/graalvm-jdk-17.0.8+9.1/bin:$PATH
+export PATH=$JAVA_HOME:$JAVA_HOME%/bin:$PATH
+----
+
+== Compiler
+----
+./mvnw clean compile
+----
+
+== Tester
+----
+./mvnw test
+----
+
+== Lancer en mode Web
+----
+./mvnw mn:run
+----
+
+== Lancer en mode CLI
+----
+./mvnw mn:run -Dapp.cli.enabled=true
+----
+
+Lors d'une recherche, ignorer l'attribut proposé en tappant enter.
+
+----
+====================================
+| Pass Generator - Interface CLI   |
+====================================
+Cette interface utilise directement le domain via les ports
+et adaptateurs (architecture hexagonale)
+
+Menu Principal:
+1. Générer des Pass
+2. Vérifier l'état d'un lot
+3. Lister les Pass d'un lot
+4. Rechercher un Pass
+5. Exporter un Pass en fichier QR
+0. Quitter
+Votre choix:
+----
+
+== tests
+
+----
+mvn(w(.cmd)) test -Dtest=PassGenerationServiceTest
+mvn(w(.cmd)) test -Dtest=PassControllerIntegrationTest
+mvn(w(.cmd)) test -Dtest=PassControllerIntegrationMockTest
+----
+
+or
+----
+mvn(w(.cmd)) test
+----
