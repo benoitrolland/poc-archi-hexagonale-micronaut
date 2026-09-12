@@ -1,14 +1,28 @@
-<configuration>
+<configuration scan="true" scanPeriod="5 seconds">
+    <!-- Supprime tous les messages de statut internes de Logback -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+	
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-
+<!-- 
+il y a deux mécanismes concurrents pour configurer Logback 
+— le fichier logback.xml et 
+les propriétés logger.levels.* de Micronaut. 
+Si les deux sont présents, celui de Micronaut prend le dessus après le démarrage du contexte, 
+mais avant (donc pour les logs du main), seul logback.xml s'applique. 
+D'où l'intérêt de définir le niveau DEBUG dans les deux pour le voir dès le début.
+-->
+    <!-- Par défaut : WARN partout -->
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <logger name="com.passgenerator" level="INFO"/>
+    <!-- DEBUG spécifique à une classe 
+    <logger name="com.passgenerator.PassGeneratorApplication" level="DEBUG"/>-->
+
+    <!-- Micronaut : WARN par défaut pour ne pas polluer -->
     <logger name="io.micronaut" level="WARN"/>
 </configuration>

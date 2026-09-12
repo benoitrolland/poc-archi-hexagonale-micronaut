@@ -18,5 +18,5 @@ app:
 logger:
   levels:
     root: INFO
-#    com.passgenerator: DEBUG
-#    io.micronaut.serde: DEBUG
+    com.passgenerator: DEBUG
+    io.micronaut: WARN

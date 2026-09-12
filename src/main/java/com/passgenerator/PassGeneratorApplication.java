@@ -6,6 +6,8 @@ import io.micronaut.configuration.picocli.MicronautFactory;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.Environment;
 import io.micronaut.runtime.Micronaut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 import picocli.CommandLine;
 
@@ -15,6 +17,7 @@ import java.util.Optional;
 
 public class PassGeneratorApplication {
 
+    private static final Logger LOG = LoggerFactory.getLogger(PassGeneratorApplication.class);
     private static final String PROPERTY = "app.cli.enabled";
 
     public static void main(String[] args) {
@@ -26,10 +29,10 @@ public class PassGeneratorApplication {
     }
 
     private static boolean isCliEnabled() {
-        // 1. System property (priorité max)
+        // 1. System property
         String sys = System.getProperty(PROPERTY);
         if (sys != null) {
-            System.err.println("[config] " + PROPERTY + " (sysprop) = " + sys);
+            LOG.debug("{} (sysprop) = {}", PROPERTY, sys);
             return Boolean.parseBoolean(sys);
         }
 
@@ -37,12 +40,12 @@ public class PassGeneratorApplication {
         for (String name : new String[]{"application-cli.yml", "application.yml"}) {
             Optional<String> value = readYamlProperty(name, PROPERTY);
             if (value.isPresent()) {
-                System.err.println("[config] " + PROPERTY + " (" + name + ") = " + value.get());
+                LOG.debug("{} ({}) = {}", PROPERTY, name, value.get());
                 return Boolean.parseBoolean(value.get());
             }
         }
 
-        System.err.println("[config] " + PROPERTY + " introuvable, défaut = false (web)");
+        LOG.debug("{} introuvable, defaut = false (mode web)", PROPERTY);
         return false;
     }
 
@@ -50,18 +53,18 @@ public class PassGeneratorApplication {
     private static Optional<String> readYamlProperty(String fileName, String dottedKey) {
         try (InputStream is = PassGeneratorApplication.class.getResourceAsStream("/" + fileName)) {
             if (is == null) {
-                System.err.println("[config] introuvable sur le classpath : " + fileName);
+                LOG.debug("introuvable sur le classpath : {}", fileName);
                 return Optional.empty();
             }
 
             Yaml yaml = new Yaml();
             Map<String, Object> root = yaml.load(is);
-            if (root == null) {
-                System.err.println("[config] YAML vide : " + fileName);
+            if (root == null || root.isEmpty()) {
+                LOG.debug("YAML vide : {}", fileName);
                 return Optional.empty();
             }
 
-            System.err.println("[config] chargé " + fileName + " = " + root);
+            LOG.debug("charge {} = {}", fileName, root);
 
             Object current = root;
             for (String part : dottedKey.split("\\.")) {
@@ -72,7 +75,7 @@ public class PassGeneratorApplication {
             return Optional.of(String.valueOf(current));
 
         } catch (Exception e) {
-            System.err.println("[config] erreur sur " + fileName + " : " + e.getMessage());
+            LOG.warn("erreur sur {} : {}", fileName, e.getMessage());
             return Optional.empty();
         }
     }
