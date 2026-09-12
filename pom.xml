@@ -16,6 +16,7 @@
     <packaging>jar</packaging>
 
     <properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jdk.version>17</jdk.version>
         <micronaut.version>4.7.5</micronaut.version>
         <lombok.version>1.18.34</lombok.version>
@@ -51,7 +52,10 @@
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-runtime</artifactId>
         </dependency>
-
+		<dependency>
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+		</dependency>
         <!-- Sérialisation (version gérée par le BOM) -->
         <dependency>
             <groupId>io.micronaut.serde</groupId>
